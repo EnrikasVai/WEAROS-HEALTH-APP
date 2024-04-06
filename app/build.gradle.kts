@@ -73,4 +73,12 @@ dependencies {
     val lifecycle_version = "2.6.2"
     implementation("androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_version")
     implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:$lifecycle_version")
+
+    //Health services for data reading directly
+    implementation("androidx.health:health-services-client:1.0.0-beta02")
+    implementation ("com.google.guava:guava:30.1.1-android")
+    implementation ("androidx.concurrent:concurrent-futures-ktx:1.1.0")
+
+    //live data
+    implementation ("androidx.compose.runtime:runtime-livedata:1.0.0")
 }

@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.bakis.presentation.screens.HeartRateCalculator
+import com.example.bakis.presentation.screens.HeartRateScreen
 import com.example.bakis.presentation.screens.HomeScreen
 import com.example.bakis.presentation.screens.WelcomeScreen
 
@@ -17,6 +19,12 @@ fun SetupNavigation(navController: NavHostController, viewmodel:FitnessViewModel
         }
         composable("home"){
             HomeScreen(viewmodel,navController)
+        }
+        composable("bpmCalculator"){
+            HeartRateScreen(viewmodel,navController)
+        }
+        composable("bpmTest"){
+            HeartRateCalculator(viewmodel,navController)
         }
         // Add any additional destinations here
     }
