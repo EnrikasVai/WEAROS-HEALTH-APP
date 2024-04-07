@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-
+data class MinMaxHeartRate(val minBpm: Float, val maxBpm: Float)
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
     private val _stepCount = MutableStateFlow("0")
     val stepCount = _stepCount.asStateFlow()
@@ -25,15 +25,68 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _heartRate = MutableLiveData<String>()
     val heartRate: LiveData<String> = _heartRate
 
+    private val _todaysHeartRateData = MutableLiveData<List<HeartRateData>>()
+    val todaysHeartRateData: LiveData<List<HeartRateData>> = _todaysHeartRateData
+
+    private val _minMaxHeartRate = MutableLiveData<MinMaxHeartRate?>()
+    val minMaxHeartRate: LiveData<MinMaxHeartRate?> = _minMaxHeartRate
+
     private val _bpmValues = mutableListOf<Float>()
     private val _bpmReady = MutableLiveData<Boolean>(false)
     val bpmReady: LiveData<Boolean> = _bpmReady
     private val _bpmValue = MutableLiveData<Float>()
     val bpmValue: LiveData<Float> = _bpmValue
+    data class HeartRateData(val bpm: Float, val timeString: String)
+    private val _lastHeartRateData = MutableLiveData<HeartRateData?>()
+    val lastHeartRateData: LiveData<HeartRateData?> = _lastHeartRateData
+
+    fun fetchLastHeartRateData() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.readLastHeartRateData(object : GoogleFitDataHandler.LastHeartRateDataListener {
+            override fun onHeartRateDataReceived(bpm: Float, timeString: String) {
+                _lastHeartRateData.postValue(HeartRateData(bpm, timeString))
+            }
+
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching heart rate data", e)
+            }
+        })
+    }
+    fun fetchTodaysHeartRateData() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.readTodaysHeartRateData(object : GoogleFitDataHandler.HeartRateDataListenerToday {
+            override fun onHeartRateDataReceived(readings: List<Pair<String, Float>>) {
+                val heartRateDataList = readings.map { (timeString, bpm) ->
+                    HeartRateData(bpm, timeString)
+                }
+                _todaysHeartRateData.postValue(heartRateDataList)
+            }
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching today's heart rate data", e)
+            }
+        })
+    }
+    fun fetchMinMaxHeartRateToday() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.fetchMinMaxHeartRateForToday(object :
+            GoogleFitDataHandler.MinMaxHeartRateListener {
+            override fun onMinMaxHeartRateFound(minBpm: Float, maxBpm: Float) {
+                _minMaxHeartRate.postValue(MinMaxHeartRate(minBpm, maxBpm))
+            }
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching min/max heart rate", e)
+            }
+        })
+    }
+
+
+
 
     init {
         fetchStepCount()
         fetchSleepCount()
+        fetchLastHeartRateData()
+        fetchTodaysHeartRateData()
     }
 
     fun fetchStepCount() {
@@ -66,7 +119,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         _bpmValues.clear() // Clear previous BPM values
         _bpmReady.value = false // Reset the BPM ready state
         viewModelScope.launch {
-            repeat(30) { // Collect data for 30 seconds
+            repeat(10) { // Collect data for 30 seconds
                 delay(1000) // Delay for a second between each data collection
                 // Assume subscribeToHeartRateData() triggers a single data collection
                 subscribeToHeartRateData()
@@ -79,8 +132,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             val averageBpm = _bpmValues.average().toFloat()
             _bpmValue.postValue(averageBpm)
             _bpmReady.postValue(true)
+
+            val currentTimeMillis = System.currentTimeMillis()
+            val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+            googleFitDataHandler.writeHeartRateData(averageBpm, currentTimeMillis)
         }
     }
+
 
     fun subscribeToHeartRateData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())

@@ -126,5 +126,172 @@ class GoogleFitDataHandler(private val context: Context) {
                 listener.onError(e)
             }
     }
+    fun writeHeartRateData(bpm: Float, timestamp: Long) {
+        val account = GoogleSignIn.getLastSignedInAccount(context)
+        if (account == null) {
+            Log.e("GoogleFitDataHandler", "Not signed in to Google Fit.")
+            return
+        }
+
+        // Define the data source
+        val dataSource = DataSource.Builder()
+            .setAppPackageName(context)
+            .setDataType(DataType.TYPE_HEART_RATE_BPM)
+            .setType(DataSource.TYPE_RAW)
+            .build()
+
+        // Create a data point for the heart rate
+        val dataPoint = DataPoint.builder(dataSource)
+            .setField(Field.FIELD_BPM, bpm)
+            .setTimestamp(timestamp, TimeUnit.MILLISECONDS)
+            .build()
+
+        // Create a data set
+        val dataSet = DataSet.builder(dataSource)
+            .add(dataPoint)
+            .build()
+
+        // Insert the data set into the user's Google Fit store
+        Fitness.getHistoryClient(context, account)
+            .insertData(dataSet)
+            .addOnSuccessListener {
+                Log.d("GoogleFitDataHandler", "Successfully wrote heart rate data to Google Fit.")
+            }
+            .addOnFailureListener { e ->
+                Log.e("GoogleFitDataHandler", "There was a problem writing the heart rate data to Google Fit.", e)
+            }
+    }
+    //last bpm reading and time
+    interface LastHeartRateDataListener {
+        fun onHeartRateDataReceived(bpm: Float, timeString: String)
+        fun onError(e: Exception)
+    }
+
+    fun readLastHeartRateData(listener: LastHeartRateDataListener) {
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - TimeUnit.DAYS.toMillis(1)
+
+        val readRequest = DataReadRequest.Builder()
+            .read(DataType.TYPE_HEART_RATE_BPM)
+            .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+            .setLimit(1)
+            .build()
+
+        Fitness.getHistoryClient(context, GoogleSignIn.getLastSignedInAccount(context)!!)
+            .readData(readRequest)
+            .addOnSuccessListener { response ->
+                val dataPoints = response.dataSets.flatMap { it.dataPoints }
+                if (dataPoints.isNotEmpty()) {
+                    val lastDataPoint = dataPoints.last()
+                    val bpm = lastDataPoint.getValue(Field.FIELD_BPM).asFloat()
+                    val timestamp = lastDataPoint.getTimestamp(TimeUnit.MILLISECONDS)
+                    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    val timeString = timeFormat.format(Date(timestamp))
+                    listener.onHeartRateDataReceived(bpm, timeString)
+                    Toast.makeText(context, "G-FIT Last heart rate: $bpm BPM at $timeString", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "No heart rate data available", Toast.LENGTH_LONG).show()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("GoogleFit", "There was a problem reading the heart rate data.", e)
+                listener.onError(e)
+            }
+    }
+    //todays all bpm readings
+    interface HeartRateDataListenerToday {
+        fun onHeartRateDataReceived(readings: List<Pair<String, Float>>) // Pair of time string and BPM
+        fun onError(e: Exception)
+    }
+    fun readTodaysHeartRateData(listener: HeartRateDataListenerToday) {
+        val startCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startTime = startCalendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+
+        val readRequest = DataReadRequest.Builder()
+            .read(DataType.TYPE_HEART_RATE_BPM)
+            .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+            .build()
+
+        Fitness.getHistoryClient(context, GoogleSignIn.getLastSignedInAccount(context)!!)
+            .readData(readRequest)
+            .addOnSuccessListener { response ->
+                val readings = response.dataSets.flatMap { dataSet ->
+                    dataSet.dataPoints.map { dataPoint ->
+                        val bpm = dataPoint.getValue(Field.FIELD_BPM).asFloat()
+                        val timestamp = dataPoint.getTimestamp(TimeUnit.MILLISECONDS)
+                        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                        val timeString = timeFormat.format(Date(timestamp))
+                        Pair(timeString, bpm)
+                    }
+                }
+                if (readings.isNotEmpty()) {
+                    listener.onHeartRateDataReceived(readings)
+                } else {
+                    Toast.makeText(context, "No heart rate data available for today", Toast.LENGTH_LONG).show()
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("GoogleFit", "There was a problem reading the heart rate data.", e)
+                listener.onError(e)
+            }
+    }
+    //todays min max bpm value
+    interface MinMaxHeartRateListener {
+        fun onMinMaxHeartRateFound(minBpm: Float, maxBpm: Float)
+        fun onError(e: Exception)
+    }
+
+    fun fetchMinMaxHeartRateForToday(listener: MinMaxHeartRateListener) {
+        val startCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val endTime = System.currentTimeMillis()
+        val startTime = startCalendar.timeInMillis
+
+        val readRequest = DataReadRequest.Builder()
+            .aggregate(DataType.TYPE_HEART_RATE_BPM)
+            .bucketByTime(1, TimeUnit.DAYS)
+            .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+            .build()
+
+        Fitness.getHistoryClient(context, GoogleSignIn.getLastSignedInAccount(context)!!)
+            .readData(readRequest)
+            .addOnSuccessListener { response ->
+                val buckets = response.buckets
+                var minBpm = Float.MAX_VALUE
+                var maxBpm = Float.MIN_VALUE
+
+                for (bucket in buckets) {
+                    val dataSet = bucket.getDataSet(DataType.TYPE_HEART_RATE_BPM)
+                    if (dataSet != null) {
+                        for (dataPoint in dataSet.dataPoints) {
+                            val bpm = dataPoint.getValue(Field.FIELD_BPM).asFloat()
+                            if (bpm < minBpm) minBpm = bpm
+                            if (bpm > maxBpm) maxBpm = bpm
+                        }
+                    }
+                }
+                if (minBpm != Float.MAX_VALUE && maxBpm != Float.MIN_VALUE) {
+                    listener.onMinMaxHeartRateFound(minBpm, maxBpm)
+                } else {
+                    listener.onError(Exception("No heart rate data available for today."))
+                }
+            }
+            .addOnFailureListener { e ->
+                listener.onError(e)
+            }
+    }
+
+
+
 
 }

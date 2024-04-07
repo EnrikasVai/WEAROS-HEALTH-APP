@@ -1,5 +1,6 @@
 package com.example.bakis.presentation.screens
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +49,7 @@ import androidx.wear.compose.foundation.rememberActiveFocusRequester
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.Icon
+import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
@@ -59,9 +62,16 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalWearFoundationApi::class)
 @Composable
 fun HomeScreen(viewModel: FitnessViewModel, navController: NavController) {
+    LaunchedEffect(Unit) {
+        viewModel.fetchLastHeartRateData()
+    }
     val stepsToday by viewModel.stepCount.collectAsState()
     val sleepToday by viewModel.sleepCount.collectAsState()
     val listState = rememberScalingLazyListState()
+    val lastBpmReading by viewModel.lastHeartRateData.observeAsState()
+    val bpm: Float? = lastBpmReading?.bpm
+
+
 
     Scaffold(
         positionIndicator = {
@@ -120,7 +130,7 @@ fun HomeScreen(viewModel: FitnessViewModel, navController: NavController) {
                     navController = navController,
                     navigateTo = "bpmCalculator",
                     titleText = "Bpm:",
-                    valueText = "0",
+                    valueText = "${bpm?.toInt()}",
                     iconColor = Color(0xFFFF3131),
                     iconResId = R.drawable.heart_beat,
                     iconSize = 30
@@ -190,9 +200,17 @@ fun NavigationBox(
 @OptIn(ExperimentalWearFoundationApi::class)
 @Composable
 fun HeartRateScreen(viewModel: FitnessViewModel, navController: NavController) {
-
+    LaunchedEffect(Unit) {
+        viewModel.fetchLastHeartRateData()
+        viewModel.fetchTodaysHeartRateData()
+    }
+    val heartRateDataList by viewModel.todaysHeartRateData.observeAsState(initial = emptyList())
+    val minHeartRate = heartRateDataList.minByOrNull { it.bpm }?.bpm
+    val maxHeartRate = heartRateDataList.maxByOrNull { it.bpm }?.bpm
     val listState = rememberScalingLazyListState()
-
+    val lastBpmReading by viewModel.lastHeartRateData.observeAsState()
+    val bpm: Float? = lastBpmReading?.bpm
+    val timeString: String? = lastBpmReading?.timeString
     Scaffold(
         positionIndicator = {
             PositionIndicator(scalingLazyListState = listState)
@@ -215,32 +233,92 @@ fun HeartRateScreen(viewModel: FitnessViewModel, navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(-10.dp)
         ) {
             item { 
-                Text(text = "13:10", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.Red)
+                Text(text = "$timeString", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.Red)
             }
             item {
                 Spacer(modifier = Modifier.height(50.dp))
-                Text(text = "78", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 40.sp)
-                Text(text = "Bpm", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                Text(text = "${bpm?.toInt()}", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 40.sp)
+                Text(text = "bpm", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(30.dp))
             }
             item {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth(), 
-                    horizontalArrangement = Arrangement.Center 
+                        .fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(
-                        modifier = Modifier.width(80.dp), 
-                        onClick = { navController.navigate("bpmTest") }
+                    Box(
+                        modifier = Modifier
+                            .size(width = 80.dp, height = 36.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.DarkGray)
+                            .clickable { navController.navigate("bpmTest") },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "Measure")
+                        Text("Measure")
                     }
                 }
+            }
+            item {
+                Spacer(modifier = Modifier.height(30.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "Low", color = Color.DarkGray)
+                        Text(text = "${minHeartRate?.toInt()}", fontSize = 25.sp)
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = "High", color = Color.DarkGray)
+                        Text(text = "${maxHeartRate?.toInt()}", fontSize = 25.sp)
+                    }
+                }
+                Spacer(modifier = Modifier.height(30.dp))
+                Text(text = "Today's Readings", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                HeartRateList(heartRateData = heartRateDataList)
+
+                Spacer(modifier = Modifier.height(50.dp))
+
             }
         }
     }
 }
 
+
+@Composable
+fun HeartRateList(heartRateData: List<FitnessViewModel.HeartRateData>) {
+    Column {
+        heartRateData.forEach { data ->
+            HeartRateRow(data)
+        }
+    }
+}
+@Composable
+fun HeartRateRow(data: FitnessViewModel.HeartRateData) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = "${data.bpm.toInt()} bpm", style = MaterialTheme.typography.body1)
+        Text(text = data.timeString, style = MaterialTheme.typography.body1)
+    }
+}
+
+
+@SuppressLint("SuspiciousIndentation")
 @Composable
 fun HeartRateCalculator(viewModel: FitnessViewModel, navController: NavController) {
     // State to manage progress
@@ -252,16 +330,14 @@ fun HeartRateCalculator(viewModel: FitnessViewModel, navController: NavControlle
     val bpmValue by viewModel.bpmValue.observeAsState()
 
     BackHandler {
-        navController.navigateUp() // Navigate back in the navigation stack
+        navController.navigateUp()
     }
-
-    // Initiate data collection when the screen is first shown
 
     LaunchedEffect(key1 = true) {
         viewModel.collectHeartRateFor30Seconds() // Start collecting data
         // Simulate progress update alongside data collection
         for (i in 1..100) {
-            delay(300) // 30 seconds total for 1 to 100, adjust as needed
+            delay(100) // 30 seconds total for 1 to 100, adjust as needed
             progress = i / 100f
         }
     }
