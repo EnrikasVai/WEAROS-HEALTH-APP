@@ -2,6 +2,7 @@ package com.example.bakis.presentation
 
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
@@ -9,10 +10,18 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.fitness.Fitness
+import com.google.android.gms.fitness.data.DataPoint
+import com.google.android.gms.fitness.data.DataSet
+import com.google.android.gms.fitness.data.DataSource
+import com.google.android.gms.fitness.data.DataType
+import com.google.android.gms.fitness.data.Field
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 data class MinMaxHeartRate(val minBpm: Float, val maxBpm: Float)
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
@@ -39,6 +48,41 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     data class HeartRateData(val bpm: Float, val timeString: String)
     private val _lastHeartRateData = MutableLiveData<HeartRateData?>()
     val lastHeartRateData: LiveData<HeartRateData?> = _lastHeartRateData
+
+    private val _todayDistance = MutableStateFlow(0.0)
+    val todayDistance = _todayDistance.asStateFlow()
+    private val _todayMoveMinutes = MutableStateFlow(0.0)
+    val todayMoveMinutes = _todayMoveMinutes.asStateFlow()
+    private val _todayAverageSpeed = MutableStateFlow(0.0)
+    val todayAverageSpeed = _todayAverageSpeed.asStateFlow()
+
+    data class SleepSegmentData(val startTime: String, val endTime: String, val type: Int)
+    private val _sleepSegments = MutableLiveData<List<SleepSegmentData>>()
+    val sleepSegments: LiveData<List<SleepSegmentData>> = _sleepSegments
+
+    private val _todayCalories = MutableStateFlow(0.0)
+    val todayCalories = _todayCalories.asStateFlow()
+
+    private val _calCount = MutableStateFlow("0")
+    val calCount = _calCount.asStateFlow()
+
+
+    fun fetchSleepSegments() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.readSleepSegments(object : GoogleFitDataHandler.SleepSegmentListener {
+            override fun onSleepSegmentReceived(sleepSegments: List<GoogleFitDataHandler.SleepSegment>) {
+                val sleepSegmentDataList = sleepSegments.map { segment ->
+                    SleepSegmentData(segment.startTime, segment.endTime, segment.type)
+                }
+                _sleepSegments.postValue(sleepSegmentDataList)
+            }
+
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching sleep segment data", e)
+            }
+        })
+    }
+
 
     fun fetchLastHeartRateData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
@@ -78,6 +122,19 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             }
         })
     }
+    fun fetchTodaysNutrition() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.readTodayCaloriesData(object : GoogleFitDataHandler.TodayCaloriesListener {
+            override fun onCaloriesDataReceived(calories: Double) {
+                viewModelScope.launch {
+                    _todayCalories.value = calories
+                }
+            }
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching fitness data", e)
+            }
+        })
+    }
 
 
 
@@ -87,6 +144,26 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         fetchSleepCount()
         fetchLastHeartRateData()
         fetchTodaysHeartRateData()
+        fetchFitnessData()
+        fetchSleepSegments()
+        fetchTodaysNutrition()
+        fetchCalCount()
+    }
+    fun fetchFitnessData() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+
+        googleFitDataHandler.readFitnessData(object : GoogleFitDataHandler.TodayDataListener {
+            override fun onStepDataReceived(distance: Double, moveMinutes: Double, averageSpeed: Double) {
+                viewModelScope.launch {
+                    _todayDistance.value = distance
+                    _todayMoveMinutes.value = moveMinutes
+                    _todayAverageSpeed.value = averageSpeed
+                }
+            }
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error fetching fitness data", e)
+            }
+        })
     }
 
     fun fetchStepCount() {
@@ -149,6 +226,59 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
             override fun onError(e: Exception) {
                 Log.e("FitnessViewModel", "Error subscribing to heart rate data", e)
+            }
+        })
+    }
+    fun addCaloriesToGoogleFit(context: Context, calories: Float, startTime: Long, endTime: Long) {
+        val dataSource = DataSource.Builder()
+            .setAppPackageName(context)
+            .setDataType(DataType.TYPE_NUTRITION)
+            .setType(DataSource.TYPE_RAW)
+            .build()
+
+        val nutrientsMap = mapOf(Field.NUTRIENT_CALORIES to calories)
+
+        // Create the data point with specific start and end times
+        val dataPoint = DataPoint.builder(dataSource)
+            .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
+            .setField(Field.FIELD_NUTRIENTS, nutrientsMap)
+            .build()
+
+        // Create the data set
+        val dataSet = DataSet.builder(dataSource)
+            .add(dataPoint)
+            .build()
+
+        // Insert the data set into Google Fit
+        Fitness.getHistoryClient(context, GoogleSignIn.getLastSignedInAccount(context)!!)
+            .insertData(dataSet)
+            .addOnSuccessListener {
+                // Data insert was successful
+                Log.i("GoogleFitCalories", "Successfully added calories to Google Fit.")
+            }
+            .addOnFailureListener { e ->
+                // Handle failure
+                Log.e("GoogleFitCalories", "Failed to add calories to Google Fit.", e)
+            }
+    }
+    fun addCalories(context: Context, calories: Float, startTime: Long, endTime: Long) {
+        viewModelScope.launch {
+            try {
+                addCaloriesToGoogleFit(context, calories, startTime, endTime)
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error adding calories to Google Fit", e)
+            }
+        }
+    }
+    fun fetchCalCount() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.readCaloriesData(object : GoogleFitDataHandler.CaloriesDataListener {
+            override fun onCalDataReceived(calCount: Int) {
+                _calCount.value = calCount.toString()
+            }
+
+            override fun onError(e: Exception) {
+                Log.e("HomeViewModel", "Error fetching calorie count", e)
             }
         })
     }
