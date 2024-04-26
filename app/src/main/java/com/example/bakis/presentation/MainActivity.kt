@@ -1,7 +1,5 @@
 package com.example.bakis.presentation
 
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -105,9 +103,6 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Permissions already granted", Toast.LENGTH_LONG).show()
             setupContent()
         }
-    }
-    companion object {
-        const val EXTRA_NAVIGATE_TO = "EXTRA_NAVIGATE_TO"
     }
 }
 

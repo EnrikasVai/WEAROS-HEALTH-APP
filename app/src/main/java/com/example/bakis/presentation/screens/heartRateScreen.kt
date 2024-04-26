@@ -196,7 +196,7 @@ fun HeartRateRow(data: FitnessViewModel.HeartRateData) {
 }
 
 @Composable
-fun HeartRateCalculator(viewModel: FitnessViewModel, navController: NavController) {
+fun HeartRateCalculator(viewModel: FitnessViewModel) {
     var progress by remember { mutableFloatStateOf(0f) }
     var animateHeart by remember { mutableStateOf(true) }
     var pulseTrigger by remember { mutableStateOf(false) }

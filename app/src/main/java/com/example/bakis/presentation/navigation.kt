@@ -29,13 +29,13 @@ fun SetupNavigation(navController: NavHostController, viewmodel:FitnessViewModel
             HeartRateScreen(viewmodel,navController)
         }
         composable("bpmTest"){
-            HeartRateCalculator(viewmodel,navController)
+            HeartRateCalculator(viewmodel)
         }
         composable("steps"){
-            StepsScreen(navController,viewmodel)
+            StepsScreen(viewmodel)
         }
         composable("sleep"){
-            SleepScreen(navController,viewmodel)
+            SleepScreen(viewmodel)
         }
         composable("nutrition"){
             NutritionScreen(navController,viewmodel)
@@ -44,7 +44,7 @@ fun SetupNavigation(navController: NavHostController, viewmodel:FitnessViewModel
             AddCaloriesScreen(navController,viewmodel)
         }
         composable("burnedCalories"){
-            CaloriesScreen(navController,viewmodel)
+            CaloriesScreen(viewmodel)
         }
         // Add any additional destinations here
     }

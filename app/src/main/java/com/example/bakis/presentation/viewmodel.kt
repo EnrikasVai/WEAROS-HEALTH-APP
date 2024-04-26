@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-data class MinMaxHeartRate(val minBpm: Float, val maxBpm: Float)
+@Suppress("DEPRECATION")
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _stepCount = MutableLiveData<Int>()
@@ -32,17 +32,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _sleepCount = MutableStateFlow("0")
     val sleepCount = _sleepCount.asStateFlow()
 
-    private val _heartRate = MutableLiveData<String>()
-    val heartRate: LiveData<String> = _heartRate
-
     private val _todaysHeartRateData = MutableLiveData<List<HeartRateData>>()
     val todaysHeartRateData: LiveData<List<HeartRateData>> = _todaysHeartRateData
 
-    private val _minMaxHeartRate = MutableLiveData<MinMaxHeartRate?>()
-    val minMaxHeartRate: LiveData<MinMaxHeartRate?> = _minMaxHeartRate
-
     private val _bpmValues = mutableListOf<Float>()
-    private val _bpmReady = MutableLiveData<Boolean>(false)
+    private val _bpmReady = MutableLiveData(false)
     val bpmReady: LiveData<Boolean> = _bpmReady
     private val _bpmValue = MutableLiveData<Float>()
     val bpmValue: LiveData<Float> = _bpmValue
@@ -55,7 +49,6 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _todayMoveMinutes = MutableStateFlow(0.0)
     val todayMoveMinutes = _todayMoveMinutes.asStateFlow()
     private val _todayAverageSpeed = MutableStateFlow(0.0)
-    val todayAverageSpeed = _todayAverageSpeed.asStateFlow()
 
     data class SleepSegmentData(val startTime: String, val endTime: String, val type: Int)
     private val _sleepSegments = MutableLiveData<List<SleepSegmentData>>()
@@ -79,11 +72,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             }
         })
     }
-    fun subscribeToStepData() {
+    private fun subscribeToStepData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.subscribeToStepData()
     }
-    fun fetchSleepSegments() {
+    private fun fetchSleepSegments() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readSleepSegments(object : GoogleFitDataHandler.SleepSegmentListener {
             override fun onSleepSegmentReceived(sleepSegments: List<GoogleFitDataHandler.SleepSegment>) {
@@ -125,18 +118,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             }
         })
     }
-    fun fetchMinMaxHeartRateToday() {
-        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
-        googleFitDataHandler.fetchMinMaxHeartRateForToday(object :
-            GoogleFitDataHandler.MinMaxHeartRateListener {
-            override fun onMinMaxHeartRateFound(minBpm: Float, maxBpm: Float) {
-                _minMaxHeartRate.postValue(MinMaxHeartRate(minBpm, maxBpm))
-            }
-            override fun onError(e: Exception) {
-                Log.e("FitnessViewModel", "Error fetching min/max heart rate", e)
-            }
-        })
-    }
+
     fun fetchTodaysNutrition() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readTodayCaloriesData(object : GoogleFitDataHandler.TodayCaloriesListener {
@@ -165,7 +147,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         fetchTodaysNutrition()
         fetchCalCount()
     }
-    fun fetchFitnessData() {
+    private fun fetchFitnessData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
 
         googleFitDataHandler.readFitnessData(object : GoogleFitDataHandler.TodayDataListener {
@@ -182,7 +164,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         })
     }
 
-    fun fetchStepCount() {
+    private fun fetchStepCount() {
         // Use `getApplication<Application>()` to get the application context
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readStepData(object : GoogleFitDataHandler.StepDataListener {
@@ -198,8 +180,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun fetchSleepCount() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readSleepData(object : GoogleFitDataHandler.SleepDataListener {
-            override fun onSleepDataReceived(sleepCount: Int) {
-                _sleepCount.value = sleepCount.toString()
+            override fun onSleepDataReceived(totalSleepMinutes: Int) {
+                _sleepCount.value = totalSleepMinutes.toString()
             }
 
             override fun onError(e: Exception) {
@@ -233,7 +215,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
-    fun subscribeToHeartRateData() {
+    private fun subscribeToHeartRateData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.subscribeToHeartRate(object : GoogleFitDataHandler.HeartRateDataListener {
             override fun onHeartRateDataReceived(bpm: Float) {
@@ -245,7 +227,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             }
         })
     }
-    fun addCaloriesToGoogleFit(context: Context, calories: Float, startTime: Long, endTime: Long) {
+    private fun addCaloriesToGoogleFit(context: Context, calories: Float, startTime: Long, endTime: Long) {
         val dataSource = DataSource.Builder()
             .setAppPackageName(context)
             .setDataType(DataType.TYPE_NUTRITION)

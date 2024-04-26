@@ -20,7 +20,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import androidx.wear.compose.foundation.ExperimentalWearFoundationApi
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.foundation.rememberActiveFocusRequester
@@ -34,7 +33,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalWearFoundationApi::class)
 @Composable
-fun CaloriesScreen(navController: NavController, viewModel: FitnessViewModel) {
+fun CaloriesScreen(viewModel: FitnessViewModel) {
     val listState = rememberScalingLazyListState()
     val caloriesBurned by viewModel.calCount.collectAsState()
     Scaffold(
