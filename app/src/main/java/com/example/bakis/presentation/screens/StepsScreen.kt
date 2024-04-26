@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -46,9 +48,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalWearFoundationApi::class)
 @Composable
 fun StepsScreen(navController: NavController, viewModel: FitnessViewModel) {
+    LaunchedEffect(Unit) {
+        viewModel.subscribeToRealTimeSteps()
+    }
     val listState = rememberScalingLazyListState()
-    val stepsFetched by viewModel.stepCount.collectAsState()
-    val stepsToday = stepsFetched.toInt()
+    val stepsFetched by viewModel.stepCount.observeAsState(0)
+    val stepsToday = stepsFetched
     val distanceToday by viewModel.todayDistance.collectAsState()
     val formattedDistance = String.format("%.2f", distanceToday / 1000)
     val minutesToday by viewModel.todayMoveMinutes.collectAsState()

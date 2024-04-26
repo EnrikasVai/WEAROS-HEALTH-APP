@@ -42,6 +42,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Declaration of the Tile Service
+        <service
+            android:name="com.example.bakis.presentation.tile.GoalsTileService"
+            android:label="@string/fitness_tile_label"
+            android:description="@string/tile_description"
+            android:icon="@drawable/ic_run"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_goals" />
+        </service>
+            -->
+
     </application>
+
 
 </manifest>

@@ -1,10 +1,7 @@
 package com.example.bakis.presentation.screens
 
-import android.annotation.SuppressLint
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,7 +45,6 @@ import androidx.navigation.NavController
 import androidx.wear.compose.foundation.ExperimentalWearFoundationApi
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.foundation.rememberActiveFocusRequester
-import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.PositionIndicator
@@ -91,14 +88,14 @@ fun HeartRateScreen(viewModel: FitnessViewModel, navController: NavController) {
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
-            verticalArrangement = Arrangement.spacedBy(-10.dp)
+            verticalArrangement = Arrangement.spacedBy((-10).dp)
         ) {
             item {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth() // Ensure the Row fills the max width to center its children
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.heart_beat),
@@ -200,36 +197,44 @@ fun HeartRateRow(data: FitnessViewModel.HeartRateData) {
 
 @Composable
 fun HeartRateCalculator(viewModel: FitnessViewModel, navController: NavController) {
-    var progress by remember { mutableStateOf(0f) }
+    var progress by remember { mutableFloatStateOf(0f) }
     var animateHeart by remember { mutableStateOf(true) }
-    val animatedProgress = animateFloatAsState(
-        targetValue = if (animateHeart) progress else 1f
-    )
-    val scale = animateFloatAsState(
-        targetValue = if (animateHeart) 1.0f + 0.2f * animatedProgress.value else 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = { it }),
-            repeatMode = RepeatMode.Reverse
-        )
+    var pulseTrigger by remember { mutableStateOf(false) }
+
+    val scale by animateFloatAsState(
+        targetValue = if (pulseTrigger) 1.2f else 1.0f,
+        animationSpec = tween(durationMillis = 300, easing = LinearOutSlowInEasing), label = ""
     )
 
     val bpmReady by viewModel.bpmReady.observeAsState()
     val bpmValue by viewModel.bpmValue.observeAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.collectHeartRateFor30Seconds()
+        while (animateHeart) {
+            pulseTrigger = !pulseTrigger
+            delay(300)
+        }
+    }
+
+    LaunchedEffect(progress) {
+        if (progress >= 1.0f) {
+            animateHeart = false
+        }
+    }
+
     LaunchedEffect(key1 = true) {
-        viewModel.collectHeartRateFor30Seconds() // Start collecting data
         for (i in 1..100) {
-            delay(300) // Adjust duration to simulate progress
+            delay(100)
             progress = i / 100f
         }
-        animateHeart = false // Stop animation after data collection
     }
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Image(
             painter = painterResource(id = R.drawable.heart_icon),
             contentDescription = "Heart",
-            modifier = Modifier.size(100.dp * scale.value),
+            modifier = Modifier.size(150.dp * scale),
             colorFilter = ColorFilter.tint(Color.Red),
             contentScale = ContentScale.Fit
         )
@@ -240,9 +245,8 @@ fun HeartRateCalculator(viewModel: FitnessViewModel, navController: NavControlle
                 color = Color.White
             )
         } else if (bpmReady == true) {
-            animateHeart = false
             Text(
-                text = "BPM: ${bpmValue ?: "Calculating..."}",
+                text = "BPM: ${bpmValue?.toInt() ?: "Calculating..."}",
                 fontSize = 20.sp,
                 color = Color.White
             )

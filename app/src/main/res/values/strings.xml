@@ -5,4 +5,9 @@
     values-round/strings.xml for round devices.
     -->
     <string name="hello_world">From the Square world,\nHello, %1$s!</string>
+    <string name="tile_description">Steps Count</string>
+    <string name="fitness_tile_label">Step progress</string>
+    <string name="goal">/ %d steps</string>
+
+    <string name="placeholder_text">Time to create a tile!</string>
 </resources>

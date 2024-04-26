@@ -25,8 +25,9 @@ import java.util.concurrent.TimeUnit
 
 data class MinMaxHeartRate(val minBpm: Float, val maxBpm: Float)
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
-    private val _stepCount = MutableStateFlow("0")
-    val stepCount = _stepCount.asStateFlow()
+
+    private val _stepCount = MutableLiveData<Int>()
+    val stepCount: LiveData<Int> = _stepCount
 
     private val _sleepCount = MutableStateFlow("0")
     val sleepCount = _sleepCount.asStateFlow()
@@ -66,7 +67,22 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val _calCount = MutableStateFlow("0")
     val calCount = _calCount.asStateFlow()
 
+    fun subscribeToRealTimeSteps() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.subscribeToStepData(object : GoogleFitDataHandler.StepDataRealTimeListener {
+            override fun onStepDataReceived(steps: Int) {
+                _stepCount.value = steps
+            }
 
+            override fun onError(e: Exception) {
+                Log.e("FitnessViewModel", "Error subscribing to real-time step data", e)
+            }
+        })
+    }
+    fun subscribeToStepData() {
+        val googleFitDataHandler = GoogleFitDataHandler(getApplication())
+        googleFitDataHandler.subscribeToStepData()
+    }
     fun fetchSleepSegments() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readSleepSegments(object : GoogleFitDataHandler.SleepSegmentListener {
@@ -82,7 +98,6 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             }
         })
     }
-
 
     fun fetchLastHeartRateData() {
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
@@ -140,6 +155,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
 
     init {
+        subscribeToStepData()
         fetchStepCount()
         fetchSleepCount()
         fetchLastHeartRateData()
@@ -171,7 +187,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val googleFitDataHandler = GoogleFitDataHandler(getApplication())
         googleFitDataHandler.readStepData(object : GoogleFitDataHandler.StepDataListener {
             override fun onStepDataReceived(stepCount: Int) {
-                _stepCount.value = stepCount.toString()
+                _stepCount.value = stepCount
             }
 
             override fun onError(e: Exception) {

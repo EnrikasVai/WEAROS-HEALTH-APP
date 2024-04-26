@@ -50,9 +50,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(viewModel: FitnessViewModel, navController: NavController) {
     LaunchedEffect(Unit) {
+        viewModel.subscribeToRealTimeSteps()
         viewModel.fetchLastHeartRateData()
+        viewModel.fetchCalCount()
+        viewModel.fetchSleepCount()
+        viewModel.fetchTodaysNutrition()
     }
-    val stepsToday by viewModel.stepCount.collectAsState()
+    val stepsToday by viewModel.stepCount.observeAsState(0)
     val sleepToday by viewModel.sleepCount.collectAsState()
     //format sleep data
     val hours = sleepToday.toInt() / 60
@@ -99,7 +103,7 @@ fun HomeScreen(viewModel: FitnessViewModel, navController: NavController) {
                     navController = navController,
                     navigateTo = "steps",
                     titleText = "Steps today:",
-                    valueText = stepsToday,
+                    valueText = stepsToday.toString(),
                     iconColor = Color.Green,
                     iconResId = R.drawable.footsteps,
                     iconSize = 30

@@ -1,5 +1,7 @@
 package com.example.bakis.presentation
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -27,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private val fitnessOptions: FitnessOptions by lazy {
         FitnessOptions.builder()
             .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_READ)
+            .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
             .addDataType(DataType.TYPE_CALORIES_EXPENDED, FitnessOptions.ACCESS_READ)
             .addDataType(DataType.TYPE_SLEEP_SEGMENT, FitnessOptions.ACCESS_READ)
             .addDataType(DataType.TYPE_HEART_RATE_BPM, FitnessOptions.ACCESS_READ)
@@ -36,6 +39,8 @@ class MainActivity : ComponentActivity() {
             .addDataType(DataType.TYPE_SPEED, FitnessOptions.ACCESS_READ)
             .addDataType(DataType.TYPE_NUTRITION, FitnessOptions.ACCESS_READ)
             .addDataType(DataType.TYPE_NUTRITION, FitnessOptions.ACCESS_WRITE)
+            .addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE, FitnessOptions.ACCESS_WRITE)
+            .addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE, FitnessOptions.ACCESS_READ)
             .build()
     }
 
@@ -101,5 +106,12 @@ class MainActivity : ComponentActivity() {
             setupContent()
         }
     }
+    companion object {
+        const val EXTRA_NAVIGATE_TO = "EXTRA_NAVIGATE_TO"
+    }
 }
+
+
+
+
 

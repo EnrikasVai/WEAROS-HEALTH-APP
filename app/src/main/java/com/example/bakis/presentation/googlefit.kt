@@ -2,7 +2,6 @@ package com.example.bakis.presentation
 
 import android.content.Context
 import android.util.Log
-import android.widget.Toast
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.data.DataType
 import com.google.android.gms.fitness.request.DataReadRequest
@@ -21,7 +20,6 @@ import java.util.concurrent.TimeUnit
 class GoogleFitDataHandler(private val context: Context) {
 
 
-    //Functions for retrieving Today's data steps, bpm, sleep, calories. Currently only used in home screen to show today's health data.
     interface StepDataListener {
         fun onStepDataReceived(stepCount: Int)
         fun onError(e: Exception)
@@ -50,7 +48,6 @@ class GoogleFitDataHandler(private val context: Context) {
                 val dataSet = response.buckets.flatMap { it.dataSets }.flatMap { it.dataPoints }
                 val totalSteps = dataSet.sumOf { it.getValue(Field.FIELD_STEPS).asInt() }
                 listener.onStepDataReceived(totalSteps)
-                Toast.makeText(context, "G-FIT Total steps: $totalSteps", Toast.LENGTH_LONG).show()
             }
             .addOnFailureListener { e ->
                 Log.e("GoogleFit", "There was a problem reading the data.", e)
@@ -89,7 +86,6 @@ class GoogleFitDataHandler(private val context: Context) {
                     totalSleepMinutes += (endTime - startTime).toInt()
                 }
                 listener.onSleepDataReceived(totalSleepMinutes)
-                Toast.makeText(context, "G-FIT Total sleep: $totalSleepMinutes minutes", Toast.LENGTH_LONG).show()
             }
             .addOnFailureListener { e ->
                 Log.e("GoogleFitSleep", "There was a problem reading the sleep data.", e)
@@ -188,9 +184,7 @@ class GoogleFitDataHandler(private val context: Context) {
                     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                     val timeString = timeFormat.format(Date(timestamp))
                     listener.onHeartRateDataReceived(bpm, timeString)
-                    Toast.makeText(context, "G-FIT Last heart rate: $bpm BPM at $timeString", Toast.LENGTH_LONG).show()
                 } else {
-                    Toast.makeText(context, "No heart rate data available", Toast.LENGTH_LONG).show()
                 }
             }
             .addOnFailureListener { e ->
@@ -233,7 +227,6 @@ class GoogleFitDataHandler(private val context: Context) {
                 if (readings.isNotEmpty()) {
                     listener.onHeartRateDataReceived(readings)
                 } else {
-                    Toast.makeText(context, "No heart rate data available for today", Toast.LENGTH_LONG).show()
                 }
             }
             .addOnFailureListener { e ->
@@ -376,7 +369,6 @@ class GoogleFitDataHandler(private val context: Context) {
                 if (sleepSegments.isNotEmpty()) {
                     listener.onSleepSegmentReceived(sleepSegments)
                 } else {
-                    Toast.makeText(context, "No sleep segment data available", Toast.LENGTH_LONG).show()
                 }
             }
             .addOnFailureListener { e ->
@@ -458,11 +450,53 @@ class GoogleFitDataHandler(private val context: Context) {
                     totalCalories += dataPoint.getValue(Field.FIELD_CALORIES).asFloat()
                 }
                 listener.onCalDataReceived(totalCalories.toInt())
-                Toast.makeText(context, "G-FIT Total sleep: $totalCalories cal", Toast.LENGTH_LONG).show()
             }
             .addOnFailureListener { e ->
                 Log.e("GoogleFitCalories", "There was a problem reading the calories data.", e)
                 listener.onError(e)
             }
     }
+    fun subscribeToStepData() {
+        val account = GoogleSignIn.getLastSignedInAccount(context)
+        if (account == null) {
+            Log.e("GoogleFitDataHandler", "Not signed in to Google Fit.")
+            return
+        }
+        // Subscribe to recording step count data
+        Fitness.getRecordingClient(context, account)
+            .subscribe(DataType.TYPE_STEP_COUNT_CUMULATIVE)
+            .addOnSuccessListener {
+                Log.i("GoogleFitDataHandler", "Successfully subscribed to record step data.")
+            }
+            .addOnFailureListener { e ->
+                Log.e("GoogleFitDataHandler", "Failed to subscribe to record step data.", e)
+            }
+    }
+    interface StepDataRealTimeListener {
+        fun onStepDataReceived(steps: Int)
+        fun onError(e: Exception)
+    }
+
+    fun subscribeToStepData(listener: StepDataRealTimeListener) {
+
+        val account = GoogleSignIn.getLastSignedInAccount(context)
+        if (account == null) {
+            Log.e("GoogleFitDataHandler", "Not signed in to Google Fit.")
+            return
+        }
+
+            Fitness.getHistoryClient(context, account)
+                .readDailyTotal(DataType.TYPE_STEP_COUNT_DELTA)
+                .addOnSuccessListener { result ->
+                    val totalSteps = result.dataPoints.firstOrNull()?.getValue(Field.FIELD_STEPS)?.asInt() ?: 0
+                    listener.onStepDataReceived(totalSteps)
+                    Log.d("GoogleFitDataHandler", "Successfully retrieved daily total steps.")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("GoogleFitDataHandler", "There was a problem getting daily total steps.", e)
+                    listener.onError(e)
+                }
+        }
+
+
 }
