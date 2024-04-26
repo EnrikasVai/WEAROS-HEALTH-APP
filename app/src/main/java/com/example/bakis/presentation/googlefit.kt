@@ -17,6 +17,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+@Suppress("DEPRECATION", "NAME_SHADOWING")
 class GoogleFitDataHandler(private val context: Context) {
 
 
@@ -234,55 +235,7 @@ class GoogleFitDataHandler(private val context: Context) {
                 listener.onError(e)
             }
     }
-    //todays min max bpm value
-    interface MinMaxHeartRateListener {
-        fun onMinMaxHeartRateFound(minBpm: Float, maxBpm: Float)
-        fun onError(e: Exception)
-    }
 
-    fun fetchMinMaxHeartRateForToday(listener: MinMaxHeartRateListener) {
-        val startCalendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val endTime = System.currentTimeMillis()
-        val startTime = startCalendar.timeInMillis
-
-        val readRequest = DataReadRequest.Builder()
-            .aggregate(DataType.TYPE_HEART_RATE_BPM)
-            .bucketByTime(1, TimeUnit.DAYS)
-            .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
-            .build()
-
-        Fitness.getHistoryClient(context, GoogleSignIn.getLastSignedInAccount(context)!!)
-            .readData(readRequest)
-            .addOnSuccessListener { response ->
-                val buckets = response.buckets
-                var minBpm = Float.MAX_VALUE
-                var maxBpm = Float.MIN_VALUE
-
-                for (bucket in buckets) {
-                    val dataSet = bucket.getDataSet(DataType.TYPE_HEART_RATE_BPM)
-                    if (dataSet != null) {
-                        for (dataPoint in dataSet.dataPoints) {
-                            val bpm = dataPoint.getValue(Field.FIELD_BPM).asFloat()
-                            if (bpm < minBpm) minBpm = bpm
-                            if (bpm > maxBpm) maxBpm = bpm
-                        }
-                    }
-                }
-                if (minBpm != Float.MAX_VALUE && maxBpm != Float.MIN_VALUE) {
-                    listener.onMinMaxHeartRateFound(minBpm, maxBpm)
-                } else {
-                    listener.onError(Exception("No heart rate data available for today."))
-                }
-            }
-            .addOnFailureListener { e ->
-                listener.onError(e)
-            }
-    }
     fun readFitnessData(listener: TodayDataListener) {
         val startCalendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -309,7 +262,7 @@ class GoogleFitDataHandler(private val context: Context) {
                 val buckets = response.buckets
                 var totalDistance = 0.0
                 var moveMinutes = 0.0
-                var averageSpeed = 0.0
+                val averageSpeed = 0.0
                 buckets.forEach { bucket ->
                     bucket.dataSets.forEach { dataSet ->
                         when (dataSet.dataType) {
