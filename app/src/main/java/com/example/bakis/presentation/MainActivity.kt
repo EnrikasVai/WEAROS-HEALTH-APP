@@ -1,6 +1,9 @@
 package com.example.bakis.presentation
 
+import android.content.ContentValues.TAG
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,9 +19,11 @@ import androidx.wear.compose.material.MaterialTheme
 import com.example.bakis.presentation.theme.WATCHAPPTheme
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessOptions
 import com.google.android.gms.fitness.data.DataType
 
+@Suppress("DEPRECATION")
 class MainActivity : ComponentActivity() {
     private val viewModel: FitnessViewModel by viewModels {
         FitnessViewModelFactory(application)
@@ -59,7 +64,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        if (intent.getBooleanExtra("EXIT", false)) {
+            finish()
+            return
+        }
         // Check if permissions are already granted
         if (checkGoogleFitPermissionGranted()) {
             setupContent()
@@ -88,7 +96,7 @@ class MainActivity : ComponentActivity() {
         return GoogleSignIn.hasPermissions(account, fitnessOptions)
     }
 
-    private fun requestGoogleFitPermissions() {
+    fun requestGoogleFitPermissions() {
         val signInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail() // Or any other options you need
             .addExtension(fitnessOptions) // Important for Google Fit
@@ -103,6 +111,38 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Permissions already granted", Toast.LENGTH_LONG).show()
             setupContent()
         }
+    }
+    fun disconnect() {
+        val account = GoogleSignIn.getAccountForExtension(this, fitnessOptions)
+        val configClient = Fitness.getConfigClient(this, account)
+        configClient.disableFit().addOnSuccessListener {
+            Log.i(TAG, "Google Fit has been disabled")
+            val signInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .addExtension(fitnessOptions)
+                .build()
+            val googleSignInClient = GoogleSignIn.getClient(this, signInOptions)
+            googleSignInClient.signOut().addOnCompleteListener {
+                Log.i(TAG, "User signed out from Google account")
+            }
+            googleSignInClient.revokeAccess().addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.i(TAG, "All access has been revoked")
+                    Toast.makeText(this, "Disconnected from Google Fit", Toast.LENGTH_LONG).show()
+                } else {
+                    Log.e(TAG, "Failed to revoke access", task.exception)
+                    Toast.makeText(this, "Failed to disconnect from Google Fit", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.addOnFailureListener { e ->
+            Log.w(TAG, "Failed to disable Google Fit", e)
+            Toast.makeText(this, "Error disconnecting from Google Fit", Toast.LENGTH_LONG).show()
+        }
+    }
+    fun closeApp() {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        intent.putExtra("EXIT", true)
+        startActivity(intent)
     }
 }
 

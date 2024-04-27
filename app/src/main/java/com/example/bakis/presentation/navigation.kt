@@ -10,6 +10,7 @@ import com.example.bakis.presentation.screens.HeartRateCalculator
 import com.example.bakis.presentation.screens.HeartRateScreen
 import com.example.bakis.presentation.screens.HomeScreen
 import com.example.bakis.presentation.screens.NutritionScreen
+import com.example.bakis.presentation.screens.SettingsScreen
 import com.example.bakis.presentation.screens.SleepScreen
 import com.example.bakis.presentation.screens.StepsScreen
 import com.example.bakis.presentation.screens.WelcomeScreen
@@ -46,6 +47,8 @@ fun SetupNavigation(navController: NavHostController, viewmodel:FitnessViewModel
         composable("burnedCalories"){
             CaloriesScreen(viewmodel)
         }
-        // Add any additional destinations here
+        composable("settings"){
+            SettingsScreen()
+        }
     }
 }

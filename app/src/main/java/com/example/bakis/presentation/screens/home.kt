@@ -157,6 +157,16 @@ fun HomeScreen(viewModel: FitnessViewModel, navController: NavController) {
                     iconSize = 30
                 )
             }
+            // Settings
+            item {
+                SettingsBox(
+                    navController = navController,
+                    navigateTo = "settings",
+                    valueText = "Settings",
+                    iconResId = R.drawable.gear_icon,
+                    iconSize = 25
+                )
+            }
         }
     }
 }
@@ -196,6 +206,41 @@ fun NavigationBox(
             Column {
                 Text(text = titleText, fontSize = 14.sp)
                 Text(text = valueText, fontSize = 25.sp, color = Color.White)
+            }
+        }
+    }
+}
+@Composable
+fun SettingsBox(
+    navController: NavController,
+    navigateTo: String,
+    iconResId: Int,
+    valueText: String,
+    iconSize: Int
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(90.dp)
+            .padding(top = 10.dp, bottom = 10.dp)
+            .clip(RoundedCornerShape(40.dp))
+            .background(Color.DarkGray)
+            .clickable { navController.navigate(navigateTo) },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.width(20.dp))
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = "Navigation icon",
+                modifier = Modifier.size(iconSize.dp)
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+            Column {
+                Text(text = valueText, fontSize = 20.sp, color = Color.White)
             }
         }
     }
